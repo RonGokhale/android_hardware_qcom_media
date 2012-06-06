@@ -2345,6 +2345,9 @@ OMX_ERRORTYPE  omx_video::use_output_buffer(
   OMX_BUFFERHEADERTYPE       *bufHdr= NULL; // buffer header
   unsigned                         i= 0; // Temporary counter
   unsigned char *buf_addr = NULL;
+#ifdef _MSM8974_
+  int align_size;
+#endif
 
   DEBUG_PRINT_HIGH("\n Inside use_output_buffer()");
   if(bytes != m_sOutPortDef.nBufferSize || secure_session)
@@ -2440,10 +2443,17 @@ OMX_ERRORTYPE  omx_video::use_output_buffer(
       if(!m_use_output_pmem)
       {
 #ifdef USE_ION
-        m_pOutput_ion[i].ion_device_fd = alloc_map_ion_memory(
+#ifdef _MSM8974_
+      align_size = ((m_sOutPortDef.nBufferSize + 4095)/4096) * 4096;
+      m_pOutput_ion[i].ion_device_fd = alloc_map_ion_memory(align_size,
+                                         &m_pOutput_ion[i].ion_alloc_data,
+                                         &m_pOutput_ion[i].fd_ion_data,UNCACHED);
+#else
+      m_pOutput_ion[i].ion_device_fd = alloc_map_ion_memory(
                                          m_sOutPortDef.nBufferSize,
                                          &m_pOutput_ion[i].ion_alloc_data,
                                          &m_pOutput_ion[i].fd_ion_data,ION_FLAG_CACHED);
+#endif
       if(m_pOutput_ion[i].ion_device_fd < 0) {
         DEBUG_PRINT_ERROR("\nERROR:ION device open() Failed");
         return OMX_ErrorInsufficientResources;
@@ -2465,8 +2475,13 @@ OMX_ERRORTYPE  omx_video::use_output_buffer(
 #endif
         m_pOutput_pmem[i].size = m_sOutPortDef.nBufferSize;
         m_pOutput_pmem[i].offset = 0;
-        m_pOutput_pmem[i].buffer = (unsigned char *)mmap(NULL,m_pOutput_pmem[i].size,PROT_READ|PROT_WRITE,
-                                                         MAP_SHARED,m_pOutput_pmem[i].fd,0);
+#ifdef _MSM8974_
+      m_pOutput_pmem[i].buffer = (unsigned char *)mmap(NULL,align_size,PROT_READ|PROT_WRITE,
+                                                       MAP_SHARED,m_pOutput_pmem[i].fd,0);
+#else
+      m_pOutput_pmem[i].buffer = (unsigned char *)mmap(NULL,m_pOutput_pmem[i].size,PROT_READ|PROT_WRITE,
+                                                       MAP_SHARED,m_pOutput_pmem[i].fd,0);
+#endif
         if(m_pOutput_pmem[i].buffer == MAP_FAILED)
         {
           DEBUG_PRINT_ERROR("\nERROR: mmap() Failed");
@@ -2961,7 +2976,9 @@ OMX_ERRORTYPE  omx_video::allocate_output_buffer(
   OMX_ERRORTYPE eRet = OMX_ErrorNone;
   OMX_BUFFERHEADERTYPE       *bufHdr= NULL; // buffer header
   unsigned                         i= 0; // Temporary counter
-
+#ifdef _MSM8974_
+  int align_size;
+#endif
   if(!m_out_mem_ptr)
   {
     int nBufHdrSize        = 0;
@@ -3035,13 +3052,21 @@ OMX_ERRORTYPE  omx_video::allocate_output_buffer(
     if(i < m_sOutPortDef.nBufferCountActual)
     {
 #ifdef USE_ION
+#ifdef _MSM8974_
+      align_size = ((m_sOutPortDef.nBufferSize + 4095)/4096) * 4096;
+      m_pOutput_ion[i].ion_device_fd = alloc_map_ion_memory(align_size,
+                                       &m_pOutput_ion[i].ion_alloc_data,
+                                       &m_pOutput_ion[i].fd_ion_data,UNCACHED);
+#else
       m_pOutput_ion[i].ion_device_fd = alloc_map_ion_memory(m_sOutPortDef.nBufferSize,
                                        &m_pOutput_ion[i].ion_alloc_data,
                                        &m_pOutput_ion[i].fd_ion_data,ION_FLAG_CACHED);
+#endif
       if(m_pOutput_ion[i].ion_device_fd < 0) {
         DEBUG_PRINT_ERROR("\nERROR:ION device open() Failed");
         return OMX_ErrorInsufficientResources;
       }
+
       m_pOutput_pmem[i].fd = m_pOutput_ion[i].fd_ion_data.fd;
 #else
       m_pOutput_pmem[i].fd = open (MEM_DEVICE,O_RDWR);
@@ -3059,8 +3084,13 @@ OMX_ERRORTYPE  omx_video::allocate_output_buffer(
       m_pOutput_pmem[i].size = m_sOutPortDef.nBufferSize;
       m_pOutput_pmem[i].offset = 0;
       if(!secure_session) {
+#ifdef _MSM8974_
+      m_pOutput_pmem[i].buffer = (unsigned char *)mmap(NULL,align_size,PROT_READ|PROT_WRITE,
+                                                       MAP_SHARED,m_pOutput_pmem[i].fd,0);
+#else
           m_pOutput_pmem[i].buffer = (unsigned char *)mmap(NULL,m_pOutput_pmem[i].size,PROT_READ|PROT_WRITE,
                   MAP_SHARED,m_pOutput_pmem[i].fd,0);
+#endif
           if(m_pOutput_pmem[i].buffer == MAP_FAILED)
           {
               DEBUG_PRINT_ERROR("\nERROR: MMAP_FAILED in o/p alloc buffer");
