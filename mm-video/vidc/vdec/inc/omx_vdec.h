@@ -49,17 +49,6 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 static ptrdiff_t x;
 
 #ifdef _ANDROID_
-#ifdef USE_ION
-#include <linux/msm_ion.h>
-#endif
-#include <binder/MemoryHeapBase.h>
-#include <ui/ANativeObjectBase.h>
-extern "C"{
-#include<utils/Log.h>
-}
-#include <linux/videodev2.h>
-#include <poll.h>
-#define TIMEOUT 5000
 #ifdef MAX_RES_720P
 #define LOG_TAG "OMX-VDEC-720P"
 #elif MAX_RES_1080P
@@ -67,6 +56,18 @@ extern "C"{
 #else
 #define LOG_TAG "OMX-VDEC"
 #endif
+
+#ifdef USE_ION
+#include <linux/msm_ion.h>
+#endif
+#include <binder/MemoryHeapBase.h>
+#include <ui/ANativeObjectBase.h>
+extern "C"{
+#include <utils/Log.h>
+}
+#include <linux/videodev2.h>
+#include <poll.h>
+#define TIMEOUT 5000
 
 #else //_ANDROID_
 #define DEBUG_PRINT_LOW printf
@@ -455,7 +456,7 @@ private:
         VC1_AP = 2
     };
 
-#ifdef _COPPER_
+#ifdef _MSM8974_
     enum v4l2_ports
     {
         CAPTURE_PORT,
@@ -847,7 +848,7 @@ private:
     OMX_QCOM_EXTRADATA_FRAMEINFO *m_extradata;
     bool codec_config_flag;
     OMX_CONFIG_RECTTYPE rectangle;
-#ifdef _COPPER_
+#ifdef _MSM8974_
     int capture_capability;
     int output_capability;
     bool streaming[MAX_PORT];
@@ -915,7 +916,7 @@ private:
     static pthread_mutex_t m_vdec_ionlock;
 };
 
-#ifdef _COPPER_
+#ifdef _MSM8974_
 enum instance_state {
 	MSM_VIDC_CORE_UNINIT_DONE = 0x0001,
 	MSM_VIDC_CORE_INIT,
@@ -940,6 +941,6 @@ enum vidc_resposes_id {
 	MSM_VIDC_DECODER_EVENT_CHANGE,
 };
 
-#endif // _COPPER_
+#endif // _MSM8974_
 
 #endif // __OMX_VDEC_H__

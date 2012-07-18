@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------------
-Copyright (c) 2012, The Linux Foundation. All rights reserved.
+Copyright (c) 2012, Code Aurora Forum. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -8,7 +8,7 @@ modification, are permitted provided that the following conditions are met:
     * Redistributions in binary form must reproduce the above copyright
       notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-    * Neither the name of The Linux Foundation nor
+    * Neither the name of Code Aurora nor
       the names of its contributors may be used to endorse or promote
       products derived from this software without specific prior written
       permission.
@@ -28,9 +28,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include<string.h>
 #include <sys/ioctl.h>
 #include <sys/prctl.h>
-#include<unistd.h>
+#include <unistd.h>
 #include <fcntl.h>
-#include "video_encoder_device_copper.h"
+#include "video_encoder_device_msm8974.h"
 #include "omx_video_encoder.h"
 #include <linux/android_pmem.h>
 #ifdef USE_ION
@@ -1220,9 +1220,11 @@ OMX_U32 venc_dev::pmem_allocate(OMX_U32 size, OMX_U32 alignment, OMX_U32 count)
   OMX_U32 pmem_fd = -1;
   OMX_U32 width, height;
   void *buf_addr = NULL;
-  struct pmem_allocation allocation;
   struct venc_recon_addr recon_addr;
   int rc = 0;
+#ifndef USE_ION
+  struct pmem_allocation allocation;
+#endif
 
 #ifdef USE_ION
   recon_buff[count].ion_device_fd = open (MEM_DEVICE,O_RDONLY|O_DSYNC);
