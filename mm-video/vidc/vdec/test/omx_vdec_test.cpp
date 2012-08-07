@@ -3539,6 +3539,11 @@ int overlay_fb(struct OMX_BUFFERHEADERTYPE *pBufHdr)
         DEBUG_PRINT_ERROR("FBIOPAN_DISPLAY failed! line=%d\n", __LINE__);
         return -1;
     }
+    if (ioctl(fb_fd, FBIOPAN_DISPLAY, &vinfo) < 0)
+    {
+        printf("ERROR: FBIOPAN_DISPLAY failed! line=%d\n", __LINE__);
+        return -1;
+    }
     DEBUG_PRINT("\nMSMFB_OVERLAY_PLAY successfull");
     return 0;
 }
