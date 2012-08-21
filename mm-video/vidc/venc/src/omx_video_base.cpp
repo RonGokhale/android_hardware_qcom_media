@@ -2240,9 +2240,15 @@ OMX_ERRORTYPE  omx_video::use_input_buffer(
     if(!m_use_input_pmem)
     {
 #ifdef USE_ION
+#ifdef _MSM8974_
+      m_pInput_ion[i].ion_device_fd = alloc_map_ion_memory(m_sInPortDef.nBufferSize,
+                                      &m_pInput_ion[i].ion_alloc_data,
+                                      &m_pInput_ion[i].fd_ion_data,ION_FLAG_UNCACHED);
+#else
       m_pInput_ion[i].ion_device_fd = alloc_map_ion_memory(m_sInPortDef.nBufferSize,
                                       &m_pInput_ion[i].ion_alloc_data,
                                       &m_pInput_ion[i].fd_ion_data,ION_FLAG_CACHED);
+#endif
       if(m_pInput_ion[i].ion_device_fd < 0) {
         DEBUG_PRINT_ERROR("\nERROR:ION device open() Failed");
         return OMX_ErrorInsufficientResources;
@@ -2891,9 +2897,15 @@ OMX_ERRORTYPE  omx_video::allocate_input_buffer(
       flags = ION_FLAG_CACHED;
     }
 #ifdef USE_ION
+#ifdef _MSM8974_
+    m_pInput_ion[i].ion_device_fd = alloc_map_ion_memory(m_sInPortDef.nBufferSize,
+                                    &m_pInput_ion[i].ion_alloc_data,
+                                    &m_pInput_ion[i].fd_ion_data, ION_FLAG_UNCACHED);
+#else
     m_pInput_ion[i].ion_device_fd = alloc_map_ion_memory(m_sInPortDef.nBufferSize,
                                     &m_pInput_ion[i].ion_alloc_data,
                                     &m_pInput_ion[i].fd_ion_data, flags);
+#endif
     if(m_pInput_ion[i].ion_device_fd < 0) {
       DEBUG_PRINT_ERROR("\nERROR:ION device open() Failed");
       return OMX_ErrorInsufficientResources;
