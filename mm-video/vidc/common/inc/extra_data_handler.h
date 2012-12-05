@@ -37,13 +37,16 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include<linux/msm_vidc_dec.h>
 #include<linux/msm_vidc_enc.h>
 
+#define ENABLE_DEBUG_LOW
+#define ENABLE_DEBUG_HIGH
+#define ENABLE_DEBUG_ERROR
 
 #ifdef _ANDROID_
 extern "C"{
 #include<utils/Log.h>
 }
 #ifdef ENABLE_DEBUG_LOW
-#define DEBUG_PRINT_LOW ALOGE
+#define DEBUG_PRINT_LOW ALOGV
 #else
 #define DEBUG_PRINT_LOW
 #endif

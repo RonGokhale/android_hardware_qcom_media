@@ -63,7 +63,6 @@ libmm-vdec-inc          += $(LOCAL_PATH)/inc
 libmm-vdec-inc          += $(OMX_VIDEO_PATH)/vidc/common/inc
 libmm-vdec-inc          += hardware/qcom/media/mm-core/inc
 libmm-vdec-inc          += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
-#DRM include - Interface which loads the DRM library
 libmm-vdec-inc	        += $(OMX_VIDEO_PATH)/DivxDrmDecrypt/inc
 libmm-vdec-inc          += hardware/qcom/display/libgralloc
 libmm-vdec-inc          += frameworks/native/include/media/openmax
@@ -93,6 +92,7 @@ LOCAL_SRC_FILES         := src/frameparser.cpp
 LOCAL_SRC_FILES         += src/h264_utils.cpp
 LOCAL_SRC_FILES         += src/ts_parser.cpp
 LOCAL_SRC_FILES         += src/mp4_utils.cpp
+LOCAL_SRC_FILES         += src/h265_utils.cpp
 ifeq ($(TARGET_BOARD_PLATFORM),msm8974)
 LOCAL_SRC_FILES         += src/omx_vdec_msm8974.cpp
 else
@@ -101,6 +101,49 @@ endif
 LOCAL_SRC_FILES         += ../common/src/extra_data_handler.cpp
 LOCAL_SRC_FILES         += ../common/src/vidc_color_converter.cpp
 
+LOCAL_ADDITIONAL_DEPENDENCIES  := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+
+include $(BUILD_SHARED_LIBRARY)
+
+# ---------------------------------------------------------------------------------
+# 			Make the Shared library (libOmxVdecHevc)
+# ---------------------------------------------------------------------------------
+
+include $(CLEAR_VARS)
+LOCAL_PATH:= $(ROOT_DIR)
+
+libmm-vdec-inc          := bionic/libc/include
+libmm-vdec-inc          += bionic/libstdc++/include
+libmm-vdec-inc          += $(LOCAL_PATH)/inc 
+libmm-vdec-inc          += $(OMX_VIDEO_PATH)/vidc/common/inc
+libmm-vdec-inc          += hardware/qcom/media/mm-core/inc
+
+libmm-vdec-inc	        += $(OMX_VIDEO_PATH)/DivxDrmDecrypt/inc
+libmm-vdec-inc          += hardware/qcom/display/libgralloc
+libmm-vdec-inc          += frameworks/native/include/media/openmax
+libmm-vdec-inc          += frameworks/native/include/media/hardware
+libmm-vdec-inc          += $(vdec-inc)
+libmm-vdec-inc          += hardware/qcom/display/libqdutils
+
+LOCAL_MODULE                    := libOmxVdecHevc
+LOCAL_MODULE_TAGS               := optional
+LOCAL_CFLAGS                    := -D_MSM8974_ $(libOmxVdec-def)
+LOCAL_C_INCLUDES                += $(libmm-vdec-inc)
+
+LOCAL_PRELINK_MODULE    := false
+LOCAL_SHARED_LIBRARIES  := liblog libutils libbinder libcutils
+
+LOCAL_SHARED_LIBRARIES  += libdivxdrmdecrypt
+LOCAL_SHARED_LIBRARIES  += libqdMetaData
+#LOCAL_SHARED_LIBRARIES  += libhardware
+
+LOCAL_SRC_FILES         := src/frameparser.cpp
+LOCAL_SRC_FILES         += src/h264_utils.cpp
+LOCAL_SRC_FILES         += src/ts_parser.cpp
+LOCAL_SRC_FILES         += src/mp4_utils.cpp
+LOCAL_SRC_FILES         += src/omx_vdec_msm8974.cpp
+LOCAL_SRC_FILES         += src/h265_utils.cpp
+LOCAL_SRC_FILES         += ../common/src/extra_data_handler.cpp
 LOCAL_ADDITIONAL_DEPENDENCIES  := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
 include $(BUILD_SHARED_LIBRARY)

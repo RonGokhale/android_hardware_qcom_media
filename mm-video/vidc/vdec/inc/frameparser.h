@@ -31,6 +31,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "OMX_Core.h"
 #include "OMX_QCOMExtns.h"
 #include "h264_utils.h"
+#include "h265_utils.h"
+
 //#include <stdlib.h>
 
 enum codec_type
@@ -43,10 +45,9 @@ enum codec_type
     CODEC_TYPE_MPEG2 = 4,
 #ifdef _MSM8974_
     CODEC_TYPE_VP8 = 5,
-    CODEC_TYPE_MAX = CODEC_TYPE_VP8
-#else
-    CODEC_TYPE_MAX = CODEC_TYPE_MPEG2
 #endif
+    CODEC_TYPE_H265,
+    CODEC_TYPE_MAX
 };
 
 enum state_start_code_parse
@@ -70,6 +71,7 @@ class frame_parse
 
 public:
 	H264_Utils *mutils;
+        H265_Utils *m265utils;
 	int init_start_codes (codec_type codec_type_parse);
 	int parse_sc_frame (OMX_BUFFERHEADERTYPE *source,
                          OMX_BUFFERHEADERTYPE *dest ,
