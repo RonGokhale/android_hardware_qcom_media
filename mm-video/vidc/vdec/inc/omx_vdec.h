@@ -225,6 +225,18 @@ struct vdec_ion
 };
 #endif
 
+#ifdef _MSM8974_
+struct extradata_buffer_info {
+	int buffer_size;
+	char* uaddr;
+	int count;
+	int size;
+#ifdef USE_ION
+	struct vdec_ion ion;
+#endif
+};
+#endif
+
 struct video_driver_context
 {
     int video_driver_fd;
@@ -252,6 +264,10 @@ struct video_driver_context
     bool idr_only_decoding;
     unsigned disable_dmx;
     unsigned enable_sec_metadata;
+#ifdef _MSM8974_
+	struct extradata_buffer_info extradata_info;
+	int num_planes;
+#endif
 };
 
 #ifdef _ANDROID_
@@ -385,6 +401,10 @@ public:
     void complete_pending_buffer_done_cbs();
     void update_resolution(int width, int height);
     struct video_driver_context drv_ctx;
+#ifdef _MSM8974_
+    OMX_ERRORTYPE allocate_extradata();
+	void free_extradata();
+#endif
     int  m_pipe_in;
     int  m_pipe_out;
     pthread_t msg_thread_id;
@@ -580,6 +600,7 @@ private:
     OMX_ERRORTYPE push_input_buffer (OMX_HANDLETYPE hComp);
     OMX_ERRORTYPE push_input_sc_codec (OMX_HANDLETYPE hComp);
     OMX_ERRORTYPE push_input_h264 (OMX_HANDLETYPE hComp);
+    OMX_ERRORTYPE push_input_h265 (OMX_HANDLETYPE hComp);	
     OMX_ERRORTYPE push_input_vc1 (OMX_HANDLETYPE hComp);
 
     OMX_ERRORTYPE fill_this_buffer_proxy(OMX_HANDLETYPE       hComp,
@@ -681,6 +702,7 @@ private:
 #if defined (_ANDROID_ICS_)
     struct nativebuffer{
         native_handle_t *nativehandle;
+	private_handle_t *privatehandle;
         int inuse;
     };
     nativebuffer native_buffer[MAX_NUM_INPUT_OUTPUT_BUFFERS];
@@ -770,7 +792,7 @@ private:
     omx_cmd_queue m_input_pending_q;
     omx_cmd_queue m_input_free_q;
     bool arbitrary_bytes;
-    OMX_BUFFERHEADERTYPE  h264_scratch;
+    OMX_BUFFERHEADERTYPE  buf_scratch;
     OMX_BUFFERHEADERTYPE  *psource_frame;
     OMX_BUFFERHEADERTYPE  *pdest_frame;
     OMX_BUFFERHEADERTYPE  *m_inp_heap_ptr;
@@ -861,6 +883,9 @@ private:
 #endif
     unsigned int m_fill_output_msg;
     bool m_use_uncache_buffers;
+    bool m_power_hinted;
+    OMX_ERRORTYPE power_module_register();
+    OMX_ERRORTYPE power_module_deregister();
 
     class allocate_color_convert_buf {
     public:

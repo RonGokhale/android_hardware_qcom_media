@@ -55,7 +55,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C"{
 #include<utils/Log.h>
 }
-#define DEBUG_PRINT
+#define DEBUG_PRINT ALOGE
 #define DEBUG_PRINT_ERROR ALOGE
 
 //#define __DEBUG_DIVX__ // Define this macro to print (through logcat)
@@ -141,7 +141,9 @@ typedef enum {
   CODEC_FORMAT_VC1,
   CODEC_FORMAT_DIVX,
   CODEC_FORMAT_MPEG2,
-  CODEC_FORMAT_MAX = CODEC_FORMAT_MPEG2
+  CODEC_FORMAT_VP8,
+  CODEC_FORMAT_H265,
+  CODEC_FORMAT_MAX
 } codec_format;
 
 typedef enum {
@@ -614,6 +616,56 @@ void* ebd_thread(void* pArg)
   return NULL;
 }
 
+void vidc_test_write_frame_to_file
+(
+   FILE *f, 
+   unsigned char* yuv, 
+   unsigned int frame_width, 
+   unsigned int frame_height, 
+   unsigned int luma_w_stride, 
+   unsigned int luma_h_stride,
+   unsigned int chroma_w_stride, 
+   unsigned int chroma_h_stride 
+)
+{
+   unsigned int i, j = 0;
+   unsigned char *uv;
+   int count = 0;
+
+   // Y Plane
+   for(i = 0; i < frame_height;i ++)
+   {
+      count = fwrite(yuv, frame_width, 1, f);
+      yuv += luma_w_stride;
+   }
+
+   uv = yuv + ((luma_h_stride - frame_height) * luma_w_stride);
+
+
+   // U Plane
+   for (i = 0; i < ((frame_height+1)>>1); i++)
+   {
+      for(j = 0; j < ((frame_width+1) >> 1); j++)
+      {
+         fwrite(uv + (i*chroma_w_stride) + (2*j), 1, 1, f);
+      }
+   }
+
+   uv++;
+
+   // V Plane
+   for(i = 0; i < ((frame_height+1) >> 1);i ++)
+   {
+      for(j = 0; j < ((frame_width+1) >> 1); j++)
+      {
+         fwrite(uv + (i*chroma_w_stride) + (2*j), 1, 1, f);
+      }
+   }
+
+   // fflush(f);
+   return;
+}
+
 void* fbd_thread(void* pArg)
 {
   long unsigned act_time = 0, display_time = 0, render_time = 5e3, lipsync = 15e3;
@@ -733,30 +785,30 @@ void* fbd_thread(void* pArg)
           contigous_drop_frame = 0;
       }
 
-      if (takeYuvLog)
-      {
-#ifdef _MSM8974_
-
-	  // Write Luma into output file
-
-	  stride = ((width + 31) & (~31));
-	  scanlines = ((height+31) & (~31));
-	  bytes_written = fwrite((const char *)pBuffer->pBuffer,
-                                  stride*scanlines,1,outputBufferFile);
-	  pBuffer->pBuffer += (stride * scanlines);
-
-	  // Write Chroma into output file
-
-	  stride_c = ((width/2 + 31) & (~31))*2;
-	  for(i=0;i<height/2;i++) {
-	  bytes_written += fwrite((const char *)pBuffer->pBuffer,
-                                  width,1,outputBufferFile);
-	  pBuffer->pBuffer+=stride_c;
-	  }
-#else
-	  bytes_written = fwrite((const char *)pBuffer->pBuffer,
-                                  pBuffer->nFilledLen,1,outputBufferFile);
-#endif
+      if (takeYuvLog) 
+      {    
+          if (color_fmt = (OMX_COLOR_FORMATTYPE)QOMX_COLOR_FORMATYUV420PackedSemiPlanar32m) 
+          {          
+             unsigned int stride = ((width + 127) & (~127));
+             unsigned int scanlines = ((height+31) & (~31));
+             unsigned int stride_c = ((width/2 + 127) & (~127))*2;
+             char *temp = (char *) pBuffer->pBuffer;
+             int i = 0;
+             for (i = 0; i < height; i++) {
+                bytes_written = fwrite(temp, width, 1, outputBufferFile);
+                temp += stride;
+             }
+             temp = (char *)pBuffer->pBuffer + stride * scanlines;
+             for(i = 0; i < height/2; i++) {
+                 bytes_written += fwrite(temp, width, 1, outputBufferFile);
+                 temp += stride;
+             }
+         }
+         else 
+         {
+             bytes_written = fwrite((const char *)pBuffer->pBuffer,
+                       pBuffer->nFilledLen,1,outputBufferFile);
+         }
           if (bytes_written < 0) {
               DEBUG_PRINT("\nFillBufferDone: Failed to write to the file\n");
           }
@@ -1068,6 +1120,9 @@ OMX_ERRORTYPE EventHandler(OMX_IN OMX_HANDLETYPE hComponent,
 
         case OMX_EventBufferFlag:
             DEBUG_PRINT("OMX_EventBufferFlag port[%d] flags[%x]\n", nData1, nData2);
+#if 0
+            // we should not set the bOutputEosReached here. in stead we wait until fbd_thread to
+            // check the flag so that all frames can be dumped for bit exactness check.				
             if (nData1 == 1 && (nData2 & OMX_BUFFERFLAG_EOS)) {
                 pthread_mutex_lock(&eos_lock);
                 bOutputEosReached = true;
@@ -1083,6 +1138,7 @@ OMX_ERRORTYPE EventHandler(OMX_IN OMX_HANDLETYPE hComponent,
             {
                 DEBUG_PRINT_ERROR("OMX_EventBufferFlag Event not handled\n");
             }
+#endif
             break;
         case OMX_EventIndexsettingChanged:
             DEBUG_PRINT("OMX_EventIndexSettingChanged Interlace mode[%x]\n", nData1);
@@ -1142,6 +1198,11 @@ OMX_ERRORTYPE FillBufferDone(OMX_OUT OMX_HANDLETYPE hComponent,
 
     pthread_mutex_lock(&fbd_lock);
     free_op_buf_cnt++;
+	
+    if(pBuffer->nFlags & OMX_BUFFERFLAG_EOS) 
+    {
+        DEBUG_PRINT("*****FBD:Output EoS Reached************\n");        
+    }
     if(push(fbd_queue, (void *)pBuffer) < 0)
     {
       pthread_mutex_unlock(&fbd_lock);
@@ -1235,6 +1296,8 @@ int main(int argc, char **argv)
       printf(" 4--> VC1\n");
       printf(" 5--> DivX\n");
       printf(" 6--> MPEG2\n");
+      printf(" 7--> VP8\n");
+      printf(" 8--> HEVC\n");
       fflush(stdin);
       fgets(tempbuf,sizeof(tempbuf),stdin);
       sscanf(tempbuf,"%d",&codec_format_option);
@@ -1664,7 +1727,10 @@ int run_tests()
 
   // Wait till EOS is reached...
   if(bOutputEosReached)
+  {
+    DEBUG_PRINT_ERROR("OutputEosReached, do_freeHandle_and_clean_up ...\n");
     do_freeHandle_and_clean_up(currentStatus == ERROR_STATE);
+  }
   return 0;
 }
 
@@ -1943,8 +2009,8 @@ int Play_Decoder()
     portFmt.nPortIndex = portParam.nStartPortNumber;
 
     OMX_GetParameter(dec_handle,OMX_IndexParamPortDefinition,&portFmt);
-    DEBUG_PRINT("\nDec: Min Buffer Count %d\n", portFmt.nBufferCountMin);
-    DEBUG_PRINT("\nDec: Buffer Size %d\n", portFmt.nBufferSize);
+    DEBUG_PRINT("\nDec: Min i/p Buffer Count %d\n", portFmt.nBufferCountMin);
+    DEBUG_PRINT("\nDec: i/p Buffer Size %d\n", portFmt.nBufferSize);
 
     if(OMX_DirInput != portFmt.eDir) {
         printf ("\nDec: Expect Input Port\n");
@@ -1999,6 +2065,8 @@ int Play_Decoder()
            QOMX_COLOR_FormatYUV420PackedSemiPlanar64x32Tile2m8ka;
 #endif
 
+    color_fmt = (OMX_COLOR_FORMATTYPE)QOMX_COLOR_FORMATYUV420PackedSemiPlanar32m;
+
     while (ret == OMX_ErrorNone)
     {
         videoportFmt.nPortIndex = 1;
@@ -2038,10 +2106,11 @@ int Play_Decoder()
         printf("\n ERROR: Setting picture order!");
         return -1;
     }
-    DEBUG_PRINT("\nVideo format: W x H (%d x %d)",
+    DEBUG_PRINT("\nVideo format: W x H (%d x %d)\n",
       portFmt.format.video.nFrameWidth,
       portFmt.format.video.nFrameHeight);
-    if(codec_format_option == CODEC_FORMAT_H264)
+    if(codec_format_option == CODEC_FORMAT_H264 ||
+       codec_format_option == CODEC_FORMAT_H265)
     {
         OMX_VIDEO_CONFIG_NALSIZE naluSize;
         naluSize.nNaluBytes = nalSize;
@@ -2087,8 +2156,8 @@ int Play_Decoder()
        // Port for which the Client needs to obtain info
 
     OMX_GetParameter(dec_handle,OMX_IndexParamPortDefinition,&portFmt);
-    DEBUG_PRINT("nMin Buffer Count=%d", portFmt.nBufferCountMin);
-    DEBUG_PRINT("nBuffer Size=%d", portFmt.nBufferSize);
+    DEBUG_PRINT("\nDec: Min o/p Buffer Count=%d, Actual Count %d\n", portFmt.nBufferCountMin, portFmt.nBufferCountActual);
+    DEBUG_PRINT("\nDec: o/p Buffer Size=%d\n", portFmt.nBufferSize);
     if(OMX_DirOutput != portFmt.eDir) {
         DEBUG_PRINT_ERROR("Error - Expect Output Port\n");
         return -1;
@@ -2292,7 +2361,7 @@ int Play_Decoder()
                   currentStatus);
     if (currentStatus == ERROR_STATE)
     {
-      printf("Error - ERROR_STATE\n");
+      DEBUG_PRINT_ERROR("ERROR - wait_for_event, do_freeHandle_and_clean_up ...\n");
       do_freeHandle_and_clean_up(true);
       return -1;
     }
@@ -2358,7 +2427,13 @@ static OMX_ERRORTYPE Allocate_Buffer ( OMX_COMPONENTTYPE *dec_handle,
         DEBUG_PRINT("OMX_AllocateBuffer No %d \n", bufCnt);
         error = OMX_AllocateBuffer(dec_handle, &((*pBufHdrs)[bufCnt]),
                                    nPortIndex, NULL, bufSize);
+        if (error != OMX_ErrorNone)
+        {
+            DEBUG_PRINT("OMX_AllocateBuffer failed for buffer %d \n", bufCnt);
+            break;
+        }	
     }
+    DEBUG_PRINT("OMX_AllocateBuffer No %d \n", bufCntMin);
 
     return error;
 }
@@ -3435,6 +3510,10 @@ void overlay_set()
         overlayp->src.format = MDP_Y_CRCB_H2V2_TILE;
     }
 #endif
+    else if (codec_format_option == CODEC_FORMAT_H265)
+    {
+      strlcpy(vdecCompNames, "OMX.qcom.video.decoder.hevc", 28);
+    }
 #ifdef MAX_RES_1080P
     overlayp->src.format = MDP_Y_CBCR_H2V2_TILE;
 #endif
@@ -3461,6 +3540,10 @@ void overlay_set()
         if (overlayp->dst_rect.h < vinfo.yres)
             overlayp->dst_rect.y = (vinfo.yres - overlayp->dst_rect.h)/2;
     }
+    else if (codec_format_option == CODEC_FORMAT_H265)
+    {
+      portFmt.format.video.eCompressionFormat = (OMX_VIDEO_CODINGTYPE)QOMX_VIDEO_CodingHevc;
+    }	
     else
     {
         overlayp->dst_rect.y = (vinfo.yres - height)/2;
@@ -3752,6 +3835,7 @@ int disable_output_port()
     }
     if (currentStatus == ERROR_STATE)
     {
+      DEBUG_PRINT("Error disable_output_port, do_freeHandle_and_clean_up \n");
       do_freeHandle_and_clean_up(true);
       return -1;
     }
@@ -3812,6 +3896,9 @@ int enable_output_port()
     wait_for_event();
     if (currentStatus == ERROR_STATE)
     {
+      DEBUG_PRINT_ERROR("ERROR_STATE, do_freeHandle_and_clean_up ...\n");
+      DEBUG_PRINT_ERROR("ERROR_STATE after Executing state change, do_freeHandle_and_clean_up ...\n");
+      DEBUG_PRINT_ERROR("Error - enable_output_port do_freeHandle_and_clean_up\n");
       do_freeHandle_and_clean_up(true);
       return -1;
     }

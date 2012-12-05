@@ -185,6 +185,38 @@ omx_core_cb_type core[] =
     }
   },
    {
+    "OMX.qcom.video.decoder.hevc",
+    NULL,   // Create instance function
+    // Unique instance handle
+    {
+      NULL,
+      NULL,
+      NULL,
+      NULL
+    },
+    NULL,   // Shared object library handle
+    "libOmxVdecHevc.so",
+    {
+      "video_decoder.hevc"
+    }
+  },
+  {
+    "OMX.qcom.video.encoder.hevc",
+    NULL,   // Create instance function
+    // Unique instance handle
+    {
+      NULL,
+      NULL,
+      NULL,
+      NULL
+    },
+    NULL,   // Shared object library handle
+    "libOmxVencHevc.so",
+    {
+      "video_encoder.hevc"
+    }
+  },  
+   {
     "OMX.qcom.video.encoder.mpeg4",
     NULL,   // Create instance function
     // Unique instance handle

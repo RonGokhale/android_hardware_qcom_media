@@ -80,6 +80,7 @@ frame_parse::frame_parse():parse_state(A0),
                            accum_length(0),
                            bytes_tobeparsed(0),
                            mutils(NULL),
+                           m265utils(NULL),
                            start_code(NULL),
                            mask_code(NULL),
                            header_found(false),
@@ -91,8 +92,11 @@ frame_parse::~frame_parse ()
 {
     if (mutils)
         delete mutils;
-
     mutils = NULL;
+
+    if (m265utils)
+        delete m265utils;
+    m265utils = NULL;
 }
 
 int frame_parse::init_start_codes (codec_type codec_type_parse)
@@ -114,6 +118,7 @@ int frame_parse::init_start_codes (codec_type codec_type_parse)
 		mask_code = H263_mask_code;
 		break;
 	case CODEC_TYPE_H264:
+        case CODEC_TYPE_H265:
 		start_code = H264_start_code;
 		mask_code = H264_mask_code;
 		break;
